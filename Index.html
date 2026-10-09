@@ -1,225 +1,56 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#4f46e5">
-<title>Jobbhai Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<style>
-:root{--bg:#f3f4f8;--card:#fff;--tx:#1e1b4b;--mut:#6b7280;--pri:#4f46e5;--b:#e5e7eb;--g:#10b981;--o:#f59e0b;--r:#ef4444}
-@media(prefers-color-scheme:dark){:root{--bg:#0f1020;--card:#1a1b30;--tx:#eef;--mut:#9aa0b8;--b:#2b2d4a}}
-*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
-body{font-family:system-ui,Roboto,Arial,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:76px}
-header{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:18px 16px 14px;position:sticky;top:0;z-index:5}
-header h1{font-size:19px}header small{opacity:.85}
-.wrap{padding:12px;max-width:1100px;margin:auto}
-.card{background:var(--card);border:1px solid var(--b);border-radius:14px;padding:14px;margin-bottom:12px}
-.card h3{font-size:14px;margin-bottom:10px;color:var(--mut);font-weight:600}
-.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-@media(min-width:700px){.filters{grid-template-columns:repeat(4,1fr)}}
-label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
-input,select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--b);background:var(--bg);color:var(--tx);font-size:15px}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.chip{padding:6px 12px;border-radius:20px;border:1px solid var(--b);background:var(--bg);color:var(--tx);font-size:13px;cursor:pointer}
-.chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
-.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
-@media(min-width:700px){.kpis{grid-template-columns:repeat(4,1fr)}}
-.kpi{background:var(--card);border:1px solid var(--b);border-radius:14px;padding:14px;border-left:5px solid var(--pri)}
-.kpi .v{font-size:28px;font-weight:700}.kpi .l{font-size:12px;color:var(--mut)}.kpi .s{font-size:11px;color:var(--mut);margin-top:2px}
-.grid2{display:grid;gap:12px}@media(min-width:800px){.grid2{grid-template-columns:2fr 1fr}.grid3{grid-template-columns:1fr 1fr}}
-.cv{position:relative;height:240px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--b);white-space:nowrap}
-th{color:var(--mut);font-size:11px;text-transform:uppercase}
-.sc{overflow-x:auto}
-.rank{display:inline-block;width:22px;height:22px;border-radius:50%;background:var(--pri);color:#fff;text-align:center;line-height:22px;font-size:11px}
-.bar{height:6px;border-radius:4px;background:var(--b);min-width:60px}.bar i{display:block;height:100%;border-radius:4px;background:var(--g)}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--b);z-index:9}
-nav button{flex:1;padding:12px 4px;border:0;background:none;color:var(--mut);font-size:12px}
-nav button b{display:block;font-size:20px}nav button.on{color:var(--pri);font-weight:700}
-.view{display:none}.view.on{display:block}
-.btn{width:100%;padding:14px;border:0;border-radius:12px;background:var(--pri);color:#fff;font-size:16px;font-weight:600;margin-top:10px}
-.btn:disabled{opacity:.6}
-.f{margin-bottom:10px}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 18px;border-radius:20px;display:none;z-index:99;font-size:14px}
-.empty{text-align:center;color:var(--mut);padding:20px}
-</style>
-</head>
-<body>
-<header><h1>📊 Jobbhai Recruitment Dashboard</h1><small id="sub">Loading…</small></header>
-<div class="wrap">
+// ====== Google Apps Script API (Sheet se linked) ======
+const SHEET_ID = '1hEXq3f1MZt5UMgWl_6bIlQZvKuGdg7QJjcPNDxTPac4';
+const SHEET_NAME = 'employee';
 
-<!-- DASHBOARD -->
-<div id="v-dash" class="view on">
-  <div class="card">
-    <div class="chips" id="chips">
-      <span class="chip" data-r="today">Today</span>
-      <span class="chip" data-r="yest">Yesterday</span>
-      <span class="chip" data-r="7">Last 7 Days</span>
-      <span class="chip" data-r="month">This Month</span>
-      <span class="chip" data-r="all">All</span>
-    </div>
-    <div class="filters">
-      <div><label>From</label><input type="date" id="fFrom"></div>
-      <div><label>To</label><input type="date" id="fTo"></div>
-      <div><label>Player</label><select id="fPlayer"></select></div>
-      <div><label>Month</label><select id="fMonth"></select></div>
-    </div>
-  </div>
-
-  <div class="kpis">
-    <div class="kpi"><div class="l">Resumes</div><div class="v" id="kR">0</div><div class="s" id="kRs"></div></div>
-    <div class="kpi" style="border-color:var(--o)"><div class="l">Interviews</div><div class="v" id="kI">0</div><div class="s" id="kIs"></div></div>
-    <div class="kpi" style="border-color:var(--g)"><div class="l">Joinings</div><div class="v" id="kJ">0</div><div class="s" id="kJs"></div></div>
-    <div class="kpi" style="border-color:var(--r)"><div class="l">Resume → Joining</div><div class="v" id="kC">0%</div><div class="s">Overall conversion</div></div>
-  </div>
-
-  <div class="grid2">
-    <div class="card"><h3>Daily Trend</h3><div class="cv"><canvas id="cTrend"></canvas></div></div>
-    <div class="card"><h3>Funnel</h3><div class="cv"><canvas id="cFunnel"></canvas></div></div>
-  </div>
-  <div class="grid2 grid3">
-    <div class="card"><h3>Player-wise Performance</h3><div class="cv"><canvas id="cPlayer"></canvas></div></div>
-    <div class="card"><h3>Month-wise Joinings</h3><div class="cv"><canvas id="cMonth"></canvas></div></div>
-  </div>
-
-  <div class="card"><h3>🏆 Leaderboard</h3><div class="sc"><table id="tLead"></table></div></div>
-  <div class="card"><h3>Records</h3><div class="sc"><table id="tRec"></table></div></div>
-</div>
-
-<!-- ADD ENTRY -->
-<div id="v-add" class="view">
-  <div class="card">
-    <h3>➕ Add New Entry</h3>
-    <div class="f"><label>Player Name</label><input id="aName" list="plist" placeholder="Name likho" autocomplete="off"><datalist id="plist"></datalist></div>
-    <div class="f"><label>Date</label><input type="date" id="aDate"></div>
-    <div class="row3">
-      <div><label>Today Resume</label><input type="number" inputmode="numeric" id="aRes" min="0" value="0"></div>
-      <div><label>Interviews</label><input type="number" inputmode="numeric" id="aInt" min="0" value="0"></div>
-      <div><label>Joining</label><input type="number" inputmode="numeric" id="aJoin" min="0" value="0"></div>
-    </div>
-    <button class="btn" id="aBtn">Save to Google Sheet</button>
-  </div>
-</div>
-</div>
-
-<nav>
-  <button class="on" data-v="dash"><b>📊</b>Dashboard</button>
-  <button data-v="add"><b>➕</b>Add Entry</button>
-  <button id="refresh"><b>🔄</b>Refresh</button>
-</nav>
-<div id="toast"></div>
-
-<script>
-let ALL=[],charts={},range='month';
-const $=id=>document.getElementById(id);
-const pad=n=>('0'+n).slice(-2);
-const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-const show=m=>{const t=$('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2500)};
-const fmtD=s=>{const p=s.split('-');return p[2]+'-'+p[1]+'-'+p[0]};
-const sum=(a,k)=>a.reduce((x,r)=>x+r[k],0);
-const pct=(a,b)=>b?Math.round(a/b*100)+'%':'0%';
-
-function load(){
-  $('sub').textContent='Syncing with Google Sheet…';
-  google.script.run.withSuccessHandler(d=>{ALL=d;fillSelects();setRange(range);$('sub').textContent='Live data • '+ALL.length+' entries'})
-    .withFailureHandler(e=>{$('sub').textContent='Error loading';show(e.message)}).getData();
-}
-function fillSelects(){
-  const pv=$('fPlayer').value,mv=$('fMonth').value;
-  const players=[...new Set(ALL.map(r=>r.player))].sort();
-  const months=[...new Set(ALL.map(r=>r.month))];
-  $('fPlayer').innerHTML='<option value="">All Players</option>'+players.map(p=>`<option>${p}</option>`).join('');
-  $('fMonth').innerHTML='<option value="">All Months</option>'+months.map(p=>`<option>${p}</option>`).join('');
-  $('plist').innerHTML=players.map(p=>`<option value="${p}">`).join('');
-  $('fPlayer').value=pv;$('fMonth').value=mv;
-}
-function setRange(r){
-  range=r;const t=new Date(),f=$('fFrom'),to=$('fTo');
-  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.r===r));
-  if(r==='today'){f.value=to.value=iso(t)}
-  else if(r==='yest'){const y=new Date(t);y.setDate(t.getDate()-1);f.value=to.value=iso(y)}
-  else if(r==='7'){const s=new Date(t);s.setDate(t.getDate()-6);f.value=iso(s);to.value=iso(t)}
-  else if(r==='month'){f.value=iso(new Date(t.getFullYear(),t.getMonth(),1));to.value=iso(t)}
-  else if(r==='all'){f.value='';to.value=''}
-  render();
-}
-function filtered(){
-  const f=$('fFrom').value,t=$('fTo').value,p=$('fPlayer').value,m=$('fMonth').value;
-  return ALL.filter(r=>(!f||r.date>=f)&&(!t||r.date<=t)&&(!p||r.player===p)&&(!m||r.month===m));
-}
-function group(data,key){
-  const o={};data.forEach(r=>{const g=o[r[key]]||(o[r[key]]={resume:0,interviews:0,joining:0});
-    g.resume+=r.resume;g.interviews+=r.interviews;g.joining+=r.joining});return o;
-}
-function mk(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart($(id),cfg)}
-const C={r:'#4f46e5',i:'#f59e0b',j:'#10b981'};
-const opt={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{size:11}}}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}};
-
-function render(){
-  const d=filtered(),R=sum(d,'resume'),I=sum(d,'interviews'),J=sum(d,'joining');
-  $('kR').textContent=R;$('kI').textContent=I;$('kJ').textContent=J;$('kC').textContent=pct(J,R);
-  $('kRs').textContent=d.length+' entries';
-  $('kIs').textContent=pct(I,R)+' of resumes';
-  $('kJs').textContent=pct(J,I)+' of interviews';
-
-  const byDate=group(d,'date'),dates=Object.keys(byDate).sort();
-  mk('cTrend',{type:'line',data:{labels:dates.map(fmtD),datasets:[
-    {label:'Resume',data:dates.map(x=>byDate[x].resume),borderColor:C.r,backgroundColor:C.r+'22',fill:true,tension:.3},
-    {label:'Interviews',data:dates.map(x=>byDate[x].interviews),borderColor:C.i,tension:.3},
-    {label:'Joining',data:dates.map(x=>byDate[x].joining),borderColor:C.j,tension:.3}]},options:opt});
-  mk('cFunnel',{type:'doughnut',data:{labels:['Resume','Interviews','Joining'],datasets:[{data:[R,I,J],backgroundColor:[C.r,C.i,C.j]}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
-
-  const byP=group(d,'player'),pn=Object.keys(byP);
-  mk('cPlayer',{type:'bar',data:{labels:pn,datasets:[
-    {label:'Resume',data:pn.map(x=>byP[x].resume),backgroundColor:C.r},
-    {label:'Interviews',data:pn.map(x=>byP[x].interviews),backgroundColor:C.i},
-    {label:'Joining',data:pn.map(x=>byP[x].joining),backgroundColor:C.j}]},options:opt});
-  const byM=group(d,'month'),mn=Object.keys(byM);
-  mk('cMonth',{type:'bar',data:{labels:mn,datasets:[{label:'Joinings',data:mn.map(x=>byM[x].joining),backgroundColor:C.j},
-    {label:'Interviews',data:mn.map(x=>byM[x].interviews),backgroundColor:C.i}]},options:opt});
-
-  // leaderboard
-  const lead=pn.map(n=>({n,...byP[n]})).sort((a,b)=>b.joining-a.joining||b.interviews-a.interviews);
-  const mx=Math.max(1,...lead.map(x=>x.joining));
-  $('tLead').innerHTML=lead.length?'<tr><th>#</th><th>Player</th><th>Resume</th><th>Interv.</th><th>Join</th><th>Conv.</th><th></th></tr>'+
-    lead.map((x,i)=>`<tr><td><span class="rank">${i+1}</span></td><td><b>${x.n}</b></td><td>${x.resume}</td><td>${x.interviews}</td><td>${x.joining}</td><td>${pct(x.joining,x.resume)}</td><td><div class="bar"><i style="width:${x.joining/mx*100}%"></i></div></td></tr>`).join('')
-    :'<tr><td class="empty">Is filter mein koi data nahi</td></tr>';
-
-  // records
-  const recs=[...d].sort((a,b)=>b.date.localeCompare(a.date));
-  $('tRec').innerHTML=recs.length?'<tr><th>Date</th><th>Player</th><th>Month</th><th>Resume</th><th>Interv.</th><th>Join</th></tr>'+
-    recs.slice(0,200).map(r=>`<tr><td>${fmtD(r.date)}</td><td>${r.player}</td><td>${r.month}</td><td>${r.resume}</td><td>${r.interviews}</td><td>${r.joining}</td></tr>`).join('')
-    :'<tr><td class="empty">No records</td></tr>';
+function getSS_() { return SpreadsheetApp.openById(SHEET_ID); }
+function getSheet_() { return getSS_().getSheetByName(SHEET_NAME); }
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// events
-document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setRange(c.dataset.r));
-['fFrom','fTo'].forEach(i=>$(i).onchange=()=>{document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));render()});
-['fPlayer','fMonth'].forEach(i=>$(i).onchange=render);
-document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));$('v-'+b.dataset.v).classList.add('on');
-});
-$('refresh').onclick=load;
-$('aDate').value=iso(new Date());
+function toIso_(v, tz) {
+  if (v instanceof Date) return Utilities.formatDate(v, tz, 'yyyy-MM-dd');
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[0] : '';
+}
 
-$('aBtn').onclick=()=>{
-  const e={player:$('aName').value.trim(),date:$('aDate').value,resume:+$('aRes').value||0,interviews:+$('aInt').value||0,joining:+$('aJoin').value||0};
-  if(!e.player||!e.date){show('Name aur Date zaroori hai');return}
-  $('aBtn').disabled=true;$('aBtn').textContent='Saving…';
-  google.script.run.withSuccessHandler(res=>{
-    ALL.push({player:e.player.toUpperCase(),date:e.date,month:res.month,resume:e.resume,interviews:e.interviews,joining:e.joining});
-    fillSelects();render();
-    $('aRes').value=$('aInt').value=$('aJoin').value=0;
-    $('aBtn').disabled=false;$('aBtn').textContent='Save to Google Sheet';
-    show('✅ Sheet mein save ho gaya');
-  }).withFailureHandler(err=>{$('aBtn').disabled=false;$('aBtn').textContent='Save to Google Sheet';show('Error: '+err.message)}).addEntry(e);
-};
-load();
-</script>
-</body>
-</html>
+function doGet(e) {
+  try {
+    const sh = getSheet_();
+    const tz = getSS_().getSpreadsheetTimeZone();
+    const last = sh.getLastRow();
+    if (last < 2) return json_([]);
+    const rows = sh.getRange(2, 1, last - 1, 6).getValues();
+    const out = rows.filter(r => r[0] !== '' && r[1] !== '').map(r => ({
+      player: String(r[0]).trim().toUpperCase(),
+      date: toIso_(r[1], tz),
+      month: String(r[2]).trim().toUpperCase(),
+      resume: Number(r[3]) || 0,
+      interviews: Number(r[4]) || 0,
+      joining: Number(r[5]) || 0
+    })).filter(r => r.date);
+    return json_(out);
+  } catch (err) { return json_({ error: String(err) }); }
+}
+
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const d = JSON.parse(e.postData.contents);
+    const sh = getSheet_();
+    const tz = getSS_().getSpreadsheetTimeZone();
+    const p = d.date.split('-');
+    const dt = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    const month = Utilities.formatDate(dt, tz, 'MMMM').toUpperCase();
+    sh.appendRow([String(d.player).trim().toUpperCase(), dt, month,
+      Number(d.resume) || 0, Number(d.interviews) || 0, Number(d.joining) || 0]);
+    sh.getRange(sh.getLastRow(), 2).setNumberFormat('dd-MM-yyyy');
+    return json_({ ok: true, month: month });
+  } catch (err) {
+    return json_({ ok: false, error: String(err) });
+  } finally { lock.releaseLock(); }
+}
