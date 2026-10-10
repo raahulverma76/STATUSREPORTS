@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#4f46e5">
-<title>Players Dashboard</title>
+<title>Jobbhai Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{--bg:#f3f4f8;--card:#fff;--tx:#1e1b4b;--mut:#6b7280;--pri:#4f46e5;--b:#e5e7eb;--g:#10b981;--o:#f59e0b;--r:#ef4444}
@@ -49,7 +49,7 @@ nav button b{display:block;font-size:20px}nav button.on{color:var(--pri);font-we
 <script>window.API_URL='https://script.google.com/macros/s/AKfycbyZsZ5B3xuMRV0HhfXDHhEV_fZ-Vj3vU8fcuW4zD_iHTrj7Cpj6hFmca2Nuaxfi2vs/exec';/* optional: yahan /exec link permanent daal sakte ho */</script>
 </head>
 <body>
-<header style="display:flex;justify-content:space-between;align-items:center"><div><h1>📊 Players Dashboard</h1><small id="sub">Loading…</small></div><button onclick="changeApi()" style="background:#fff3;border:0;color:#fff;font-size:22px;border-radius:10px;padding:6px 10px">⚙️</button></header>
+<header style="display:flex;justify-content:space-between;align-items:center"><div><h1>📊 Jobbhai Recruitment Dashboard</h1><small id="sub">Loading…</small></div><button onclick="changeApi()" style="background:#fff3;border:0;color:#fff;font-size:22px;border-radius:10px;padding:6px 10px">⚙️</button></header>
 <div class="wrap">
 <div id="setup" class="card" style="display:none">
   <h3>⚙️ One-time Setup</h3>
@@ -120,7 +120,7 @@ nav button b{display:block;font-size:20px}nav button.on{color:var(--pri);font-we
 <div id="toast"></div>
 
 <script>
-let ALL=[],charts={},range='month';
+let ALL=[],charts={},range='all';
 const $=id=>document.getElementById(id);
 const pad=n=>('0'+n).slice(-2);
 const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -135,10 +135,11 @@ function load(){
   if(!u){$('setup').style.display='block';$('sub').textContent='Setup required';return}
   $('setup').style.display='none';
   $('sub').textContent='Syncing with Google Sheet…';
+  if(!ALL.length){try{const c=JSON.parse(localStorage.getItem('CACHE')||'[]');if(c.length){ALL=c;fillSelects();setRange(range);$('sub').textContent='Offline copy • syncing…'}}catch(e){}}
   fetch(u+'?t='+Date.now()).then(r=>r.json()).then(d=>{
     if(d.error)throw new Error(d.error);
-    ALL=d;fillSelects();setRange(range);$('sub').textContent='Live data • '+ALL.length+' entries';
-  }).catch(e=>{$('sub').textContent='Error loading';show('Error: '+e.message)});
+    ALL=d;try{localStorage.setItem('CACHE',JSON.stringify(ALL))}catch(e){}fillSelects();setRange(range);$('sub').textContent='Live data • '+ALL.length+' entries';
+  }).catch(e=>{$('sub').textContent=ALL.length?'Offline copy (net/link check karo)':'Error loading';show('Error: '+e.message)});
 }
 function saveApi(){const v=$('apiIn').value.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(v)){show('Sahi /exec link daalo');return}
   try{localStorage.setItem('API_URL',v)}catch(e){}load()}
