@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#4f46e5">
+<meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#4f46e5">
 <title>Jobbhai Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -46,10 +46,17 @@ nav button b{display:block;font-size:20px}nav button.on{color:var(--pri);font-we
 #toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 18px;border-radius:20px;display:none;z-index:99;font-size:14px}
 .empty{text-align:center;color:var(--mut);padding:20px}
 </style>
+<script>window.API_URL='';/* optional: yahan /exec link permanent daal sakte ho */</script>
 </head>
 <body>
-<header><h1>📊 Jobbhai Recruitment Dashboard</h1><small id="sub">Loading…</small></header>
+<header style="display:flex;justify-content:space-between;align-items:center"><div><h1>📊 Jobbhai Recruitment Dashboard</h1><small id="sub">Loading…</small></div><button onclick="changeApi()" style="background:#fff3;border:0;color:#fff;font-size:22px;border-radius:10px;padding:6px 10px">⚙️</button></header>
 <div class="wrap">
+<div id="setup" class="card" style="display:none">
+  <h3>⚙️ One-time Setup</h3>
+  <label>Apps Script Web App URL (https://script.google.com/.../exec)</label>
+  <input id="apiIn" placeholder="https://script.google.com/macros/s/.../exec">
+  <button class="btn" onclick="saveApi()">Connect Google Sheet</button>
+</div>
 
 <!-- DASHBOARD -->
 <div id="v-dash" class="view on">
@@ -122,11 +129,20 @@ const fmtD=s=>{const p=s.split('-');return p[2]+'-'+p[1]+'-'+p[0]};
 const sum=(a,k)=>a.reduce((x,r)=>x+r[k],0);
 const pct=(a,b)=>b?Math.round(a/b*100)+'%':'0%';
 
+function getApi(){try{return window.API_URL||localStorage.getItem('API_URL')||''}catch(e){return window.API_URL||''}}
 function load(){
+  const u=getApi();
+  if(!u){$('setup').style.display='block';$('sub').textContent='Setup required';return}
+  $('setup').style.display='none';
   $('sub').textContent='Syncing with Google Sheet…';
-  google.script.run.withSuccessHandler(d=>{ALL=d;fillSelects();setRange(range);$('sub').textContent='Live data • '+ALL.length+' entries'})
-    .withFailureHandler(e=>{$('sub').textContent='Error loading';show(e.message)}).getData();
+  fetch(u+'?t='+Date.now()).then(r=>r.json()).then(d=>{
+    if(d.error)throw new Error(d.error);
+    ALL=d;fillSelects();setRange(range);$('sub').textContent='Live data • '+ALL.length+' entries';
+  }).catch(e=>{$('sub').textContent='Error loading';show('Error: '+e.message)});
 }
+function saveApi(){const v=$('apiIn').value.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(v)){show('Sahi /exec link daalo');return}
+  try{localStorage.setItem('API_URL',v)}catch(e){}load()}
+function changeApi(){const v=prompt('Apps Script Web App URL (/exec):',getApi());if(v){try{localStorage.setItem('API_URL',v.trim())}catch(e){}load()}}
 function fillSelects(){
   const pv=$('fPlayer').value,mv=$('fMonth').value;
   const players=[...new Set(ALL.map(r=>r.player))].sort();
@@ -211,13 +227,14 @@ $('aBtn').onclick=()=>{
   const e={player:$('aName').value.trim(),date:$('aDate').value,resume:+$('aRes').value||0,interviews:+$('aInt').value||0,joining:+$('aJoin').value||0};
   if(!e.player||!e.date){show('Name aur Date zaroori hai');return}
   $('aBtn').disabled=true;$('aBtn').textContent='Saving…';
-  google.script.run.withSuccessHandler(res=>{
+  fetch(getApi()+'?action=add&'+new URLSearchParams(e).toString()).then(r=>r.json()).then(res=>{
+    if(!res.ok)throw new Error(res.error||'Save fail: Apps Script mein New version deploy karo');
     ALL.push({player:e.player.toUpperCase(),date:e.date,month:res.month,resume:e.resume,interviews:e.interviews,joining:e.joining});
     fillSelects();render();
     $('aRes').value=$('aInt').value=$('aJoin').value=0;
     $('aBtn').disabled=false;$('aBtn').textContent='Save to Google Sheet';
     show('✅ Sheet mein save ho gaya');
-  }).withFailureHandler(err=>{$('aBtn').disabled=false;$('aBtn').textContent='Save to Google Sheet';show('Error: '+err.message)}).addEntry(e);
+  }).catch(err=>{$('aBtn').disabled=false;$('aBtn').textContent='Save to Google Sheet';show('Error: '+err.message)});
 };
 load();
 </script>
