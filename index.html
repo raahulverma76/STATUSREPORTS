@@ -145,7 +145,7 @@ nav button b{display:block;font-size:20px}nav button.on{color:var(--pri);font-we
 <div id="ov"><div id="modal"><div class="ic" id="mIc"></div><h2 id="mT"></h2><div class="bd" id="mB"></div><div class="mb" id="mBtns"></div></div></div>
 
 <script>
-let ALL=[],charts={},range='all',saving=false;
+let ALL=[],charts={},range='all',saving=false,loaded=false,syncing=false,cacheT=0;
 const $=id=>document.getElementById(id);
 const pad=n=>('0'+n).slice(-2);
 const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -174,23 +174,46 @@ function changeApi(){const v=prompt('Apps Script Web App URL (/exec):',getApi())
 const norm=r=>({player:String(r.player||'').toUpperCase(),date:r.date,month:String(r.month||'').toUpperCase(),
   resume:+r.resume||0,ready:+r.ready||0,interviews:+r.interviews||0,joining:+r.joining||0,candidate:String(r.candidate||'').trim()});
 
-function load(silent){
+const hhmm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+function saveCache(){cacheT=Date.now();try{localStorage.setItem('CACHE3',JSON.stringify({t:cacheT,rows:ALL}))}catch(e){}}
+function loadCache(){try{const c=JSON.parse(localStorage.getItem('CACHE3')||'null');if(c&&c.rows&&c.rows.length){ALL=c.rows;cacheT=c.t;loaded=true;return true}}catch(e){}return false}
+async function fetchJson(u,ms){
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);
+  try{
+    const r=await fetch(u,{cache:'no-store',signal:ac.signal});
+    const txt=await r.text();
+    try{return JSON.parse(txt)}catch(e){throw new Error('Server se JSON nahi aaya (Deploy > Who has access = Anyone check karo)')}
+  }catch(e){throw new Error(e.name==='AbortError'?'Server slow hai (timeout)':e.message)}
+  finally{clearTimeout(t)}
+}
+async function load(silent,force){
   const u=getApi();
-  if(!u){$('setup').style.display='block';setSub('Setup required');return Promise.resolve()}
-  $('setup').style.display='none';
-  if(!silent)setSub('Syncing with Google Sheet…');
-  return fetch(u+'?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
-    if(d&&d.ok===false)throw new Error(d.error||'Server error');
-    const rows=Array.isArray(d)?d:(d.rows||[]);
-    ALL=rows.map(norm);
-    try{localStorage.setItem('CACHE2',JSON.stringify(ALL))}catch(e){}
-    fillSelects();render();
-    setSub('🟢 Live • '+ALL.length+' entries • '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-    if(d.skipped>0)show(d.skipped+' row skip hui (Sheet mein name/date check karo)');
-  }).catch(e=>{
-    setSub(ALL.length?'🟠 Offline copy • internet/link check karo':'🔴 Load nahi hua');
-    show('Error: '+e.message);
-  });
+  if(!u){$('setup').style.display='block';setSub('Setup required');return}
+  if(syncing&&!force)return;
+  syncing=true;$('setup').style.display='none';
+  if(!silent)setSub(ALL.length?'⏳ Syncing… (saved copy '+hhmm(cacheT)+')':'⏳ Google Sheet se data aa raha hai…');
+  let err=null;
+  for(let i=0;i<3;i++){
+    try{
+      const d=await fetchJson(u+(u.indexOf('?')>-1?'&':'?')+'t='+Date.now(),25000);
+      if(d&&d.ok===false)throw new Error(d.error||'Server error');
+      if(Array.isArray(d)){ // purana Apps Script version
+        setSub('🟠 Apps Script ka NEW VERSION deploy karo');show('Code.gs ka naya version deploy karna baaki hai');syncing=false;
+        if(d.length&&!ALL.length){ALL=d.map(norm);loaded=true;fillSelects();render()}return;
+      }
+      const rows=(d.rows||[]).map(norm);
+      if(!rows.length&&ALL.length&&d.sheetRows>0){ // server ne rows skip ki, purana data mat hatao
+        setSub('🟠 Sheet ki rows padh nahi paaya • saved copy dikha rahe hain');show('Sheet mein date/name format check karo');syncing=false;return;
+      }
+      ALL=rows;loaded=true;saveCache();fillSelects();render();
+      setSub('🟢 Live • '+ALL.length+' entries • '+hhmm(Date.now()));
+      if(d.skipped>0)show(d.skipped+' row skip hui (Sheet mein name/date check karo)');
+      syncing=false;return;
+    }catch(e){err=e;if(i<2)await new Promise(r=>setTimeout(r,1500*(i+1)))}
+  }
+  syncing=false;
+  setSub(ALL.length?'🟠 Offline • saved copy '+hhmm(cacheT):'🔴 Load nahi hua • Refresh dabao');
+  show('Error: '+(err&&err.message));
 }
 
 /* ---------- filters ---------- */
@@ -232,6 +255,7 @@ function render(){
   const d=filtered(),R=sum(d,'resume'),Rd=sum(d,'ready'),I=sum(d,'interviews'),J=sum(d,'joining');
   $('kR').textContent=R;$('kRd').textContent=Rd;$('kI').textContent=I;$('kJ').textContent=J;
   $('kC').textContent=pct(J,R);$('kC2').textContent=pct(J,I);
+  if(!loaded&&!ALL.length){['kR','kRd','kI','kJ','kC','kC2'].forEach(i=>$(i).textContent='…')}
   $('kRs').textContent=d.length+' entries';$('kRds').textContent=pct(Rd,R)+' of resumes';
   $('kIs').textContent=pct(I,R)+' of resumes';$('kJs').textContent=pct(J,I)+' of interviews';
 
@@ -286,7 +310,7 @@ function go(v){
   window.scrollTo(0,0);if(v==='dash')load(true);
 }
 document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>go(b.dataset.v));
-$('refresh').onclick=()=>{load();show('Refreshing…')};
+$('refresh').onclick=()=>{load(false,true);show('Refreshing…')};
 $('aDate').value=iso(new Date());
 
 /* ---------- add entry (confirm -> submit -> confirmation) ---------- */
@@ -318,11 +342,14 @@ function submit(e){
 
 /* ---------- start ---------- */
 try{Chart.defaults.color=getComputedStyle(document.body).getPropertyValue('--mut').trim()||'#888';Chart.defaults.borderColor='rgba(128,128,128,.2)'}catch(e){}
-try{const c=JSON.parse(localStorage.getItem('CACHE2')||'[]');if(c.length){ALL=c;fillSelects();setSub('Offline copy • syncing…')}}catch(e){}
+if(loadCache()){fillSelects();setSub('💾 Saved copy '+hhmm(cacheT)+' • syncing…')}
 setRange('all');
 load();
-setInterval(()=>{if(!document.hidden&&!saving)load(true)},30000);
+setInterval(()=>{if(!document.hidden&&!saving)load(true)},60000);   // har 1 minute auto-sync
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load(true)});
+window.addEventListener('focus',()=>load(true));
+window.addEventListener('online',()=>load(true));
+window.addEventListener('pageshow',e=>{if(e.persisted)load(true)});
 </script>
 </body>
 </html>
